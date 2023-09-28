@@ -1,7 +1,7 @@
 {
   "DataSetting": {
     "data_id":"Istella_S",
-    "dir_data":"/ocean/projects/cis230033p/houc/datasets/istella-s-letor/sample/",
+    "dir_data":"",
     "min_docs":[10],
     "min_rele":[1],
     "scaler_id":"StandardScaler",
@@ -12,7 +12,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/istella/iclr/",
+    "dir_output":"",
     "epochs":300,
     "do_validation":true,
     "vali_metric": "nDCG",
