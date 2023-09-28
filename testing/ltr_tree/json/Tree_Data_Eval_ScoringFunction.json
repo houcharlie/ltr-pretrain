@@ -1,7 +1,7 @@
 {
   "DataSetting": {
-    "data_id":"MSLRWEB30K",
-    "dir_data":"/ocean/projects/cis230033p/houc/datasets/mslr/",
+    "data_id":"Istella_S",
+    "dir_data":"",
     "scaler_id":"StandardScaler",
 
     "min_docs":[10],
@@ -14,7 +14,7 @@
   },
 
   "EvalSetting": {
-    "dir_output":"/ocean/projects/cis230033p/houc/ranking/mslr/tree/",
+    "dir_output":"",
     "epochs":100,
     "do_validation":true,
     "early_stop_or_boost_round": 20,
