@@ -10,7 +10,7 @@ https://webscope.sandbox.yahoo.com/catalog.php?datatype=c&guccounter=1
 https://istella.ai/data/letor-dataset/
 
 Step 2: You must fill in the dataset location you want to train on in the 
-config files located in ssl_rank/inputs/lambdarank/Data_Eval_ScoringFunction.json for deep learning rankers (or ssl_rank/testing/ltr_tree/json/Tree_Data_Eval_ScoringFunction.json for GBDTs)
+config files located in ssl_rank/inputs/lambdarank/Data_Eval_ScoringFunction.json for lambdarank for example (or ssl_rank/testing/ltr_tree/json/Tree_Data_Eval_ScoringFunction.json for GBDTs)
 as well as the data id (MSLRWEB30K, Set1, Istella_S).  You can also fill in the approximate
 batch size in "tr_batch_size" and the number of epochs to train in "epochs".  
 
