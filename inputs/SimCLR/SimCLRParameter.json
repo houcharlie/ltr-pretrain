@@ -1,0 +1,7 @@
+{
+  "aug_percent": [0.8],
+  "dim": [16],
+  "aug_type": ["qg"],
+  "temp": [0.07], 
+  "mix": [0.5]
+}

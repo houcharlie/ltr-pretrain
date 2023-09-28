@@ -1,0 +1,71 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+*.png
+# Distribution / packaging
+bin/
+build/
+develop-eggs/
+dist/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Rope
+.ropeproject
+
+# Django stuff:
+*.log
+*.pot
+
+# Sphinx documentation
+docs/_build/
+outputss.txt
+*simsiam_expts*
+*rankneg_expt*
+*MSLR_val_plots*
+*.out*
+*augmentation_study*
+*gbdt_references*
+*outlier_img*
+*probe_study*
+*rankneg_study*
+*synthesis_study*
+*variance_study*
+*job_submit*
+*fraction*
+*tsne*
+*e2e_eval.py*
+*eval_checkpoint.py*
+*plot_embeddings.py*
+*calc_vals.py*
+*gbdt.txt*
+*/ptranking/job_submit/*

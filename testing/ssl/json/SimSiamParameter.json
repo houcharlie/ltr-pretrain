@@ -1,0 +1,5 @@
+{
+  "aug_percent": [0.8],
+  "dim": [16],
+  "aug_type": ["qg"]
+}

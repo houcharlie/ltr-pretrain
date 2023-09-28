@@ -1,0 +1,8 @@
+{
+    "sigma":[1.0],
+    "model_path":[""],
+    "linear_path":[""],
+    "freeze": [false],
+    "probe_layers": [1]
+  }
+  

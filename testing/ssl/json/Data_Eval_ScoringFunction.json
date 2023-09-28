@@ -1,0 +1,63 @@
+{
+  "DataSetting": {
+    "data_id":"MSLRWEB30K",
+    "dir_data":"/afs/ece.cmu.edu/usr/charlieh/MSLR-WEB30K/",
+    "min_docs":[10],
+    "min_rele":[1],
+    "scaler_id":"StandardScaler",
+
+    "binary_rele":[false],
+    "unknown_as_zero":[false],
+    "tr_batch_size":[65536]
+  },
+
+  "EvalSetting": {
+    "dir_output":"/scratch/charlieh/ptranking-results/",
+    "epochs":500,
+
+    "do_validation":true,
+    "vali_metric": "nDCG",
+    "vali_k":5,
+    "cutoffs":[1, 3, 5, 10, 20, 50],
+
+    "loss_guided":false,
+
+    "do_log":true,
+    "log_step":20,
+    "do_summary":false,
+
+    "mask":{
+      "mask_label":false,
+      "mask_type":["rand_mask_all"],
+      "mask_ratio":[0.2]
+    }
+  },
+
+  "SFParameter": {
+    "sf_id":"pointsf",
+    "opt":["Adam"],
+    "lr":[0.0001],
+    "pointsf":{
+      "BN":[true],
+      "bn_type":["BN"],
+      "bn_affine":[true],
+      "layers":[5],
+      "AF":["GE"],
+      "TL_AF":["GE"],
+      "apply_tl_af":[true],
+      "out_dim":[136]
+    },
+    "listsf":{
+      "BN":[true],
+      "bn_type":["BN2"],
+      "bn_affine":[false],
+      "RD":[false],
+      "apply_tl_af":[false],
+      "AF":["R"],
+      "ff_dims":[128, 256, 512],
+      "encoder_type":["DASALC"],
+      "encoder_layers":[3],
+      "n_heads":[2]
+    }
+  }
+}
