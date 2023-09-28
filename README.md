@@ -16,7 +16,7 @@ batch size in "tr_batch_size" and the number of epochs to train in "epochs".
 
 Step 3: Run the command to pretrain and finetune a method.  
 
-An example input for pretraining with SimCLR (can also use SimSiam) and finetuning with LambdaRank when there are 0.001 of the training query groups remaining:
+An example input for pretraining with SimCLR-Rank (can also use SimSiam) and finetuning with LambdaRank when there are 0.001 of the training query groups remaining:
 
 
 >python e2e_eval.py -cuda 0 -dir_json ssl_rank/inputs -pretrain_lr 0.001 -finetune_lr 0.001 -trial_num 0 -aug_type zeroes -aug_percent 0.1 -dim 64 -layers 5 -pretrainer SimCLR -shrink 0.001 -freeze 0 -probe_layers 1 -finetune_only 0 -finetune_trials 0
