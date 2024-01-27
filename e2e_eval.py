@@ -90,7 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('-finetune_lr', type=float, help='the learning rate for finetuning.')
 
     ''' the output_dir '''
-    parser.add_argument('-trial_num', type=int, help='the trial id.')
+    parser.add_argument('-trial_num', type=int, help='the trial number.')
 
     ''' the augmentation '''
     parser.add_argument('-aug_type', type=str, help='the type of augmentation.')
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     ''' the augmentation percentage '''
     parser.add_argument('-aug_percent', type=float, help='the percentage of augmentation.')
 
-    ''' dim '''
+    ''' simsiam dim '''
     parser.add_argument('-dim', type=int, help='the dimension of pretrainer.')
 
     ''' layers '''
@@ -107,8 +107,26 @@ if __name__ == '__main__':
     ''' pretrainer '''
     parser.add_argument('-pretrainer', type=str, help='the type of pretrainer.')
 
+    ''' temp '''
+    parser.add_argument('-temperature', type=float, help='temperature of the softmax loss (if applicable).')
+
+    ''' mix '''
+    parser.add_argument('-mix', type=float, help='Mix between instance and set level simclr')
+
     ''' shrink '''
     parser.add_argument('-shrink', type=float, help='How much to shrink the train set')
+
+    ''' blend '''
+    parser.add_argument('-blend', type=float, help='Mixing between instance and qg level')
+
+    ''' scale '''
+    parser.add_argument('-scale', type=float, help='Scale of gaussian')
+
+    ''' gumbel '''
+    parser.add_argument('-gumbel', type=float, help='Temperature scaling of gumbel noise')
+
+    ''' num negatives '''
+    parser.add_argument('-num_negatives', type=int, help='Number of negatives per qg')
     
     ''' freeze '''
     parser.add_argument('-freeze', type=int, help='Whether to freeze prev layers')
@@ -120,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('-finetune_only', type=int, help='no pretrain')
 
     ''' finetune_trial '''
-    parser.add_argument('-finetune_trials', type=float, help='finetuning trial id')
+    parser.add_argument('-finetune_trials', type=float, help='finetune_trials')
 
     argobj = parser.parse_args()
     
@@ -132,16 +150,23 @@ if __name__ == '__main__':
         if argobj.freeze:
             print('Finetune FROZEN')
         evaluator = LTREvaluator(cuda=argobj.cuda)
+        
+        file_pretrain = argobj.pretrainer
+        if argobj.pretrainer == 'SubTab' or argobj.pretrainer == 'VIME':
+            file_pretrain = 'RankNeg'
+
         # setup_seed(0)
         if argobj.aug_type != 'none' and not argobj.finetune_only:
             print('Starting pretraining!', sys.stderr)
             argobj.is_pretraining = True
-            evaluator.run(model_id=argobj.pretrainer, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
+            evaluator.run(model_id=file_pretrain, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
 
         print('Starting finetuning!', sys.stderr)
         argobj.is_pretraining = False
         if argobj.aug_type == 'none':
             evaluator.run(model_id="LambdaRank", dir_json=os.path.join(argobj.dir_json, 'lambdarank/'), config_with_json=True, argobj=argobj)
+        elif argobj.pretrainer == 'SubTab':
+            evaluator.run(model_id="SubTabTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
         else:
             evaluator.run(model_id="LambdaRankTune", dir_json=os.path.join(argobj.dir_json, 'lambdaranktune/'), config_with_json=True, argobj=argobj)
 

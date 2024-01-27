@@ -8,7 +8,7 @@ import time
 from itertools import product
 from ptranking.base.utils import get_stacked_FFNet, get_resnet, ResNetBlock, LTRBatchNorm
 from ptranking.base.ranker import NeuralRanker
-from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian
+from ptranking.ltr_adhoc.pretrain.augmentations import zeroes, qgswap, gaussian, dacl, scarf
 from ptranking.data.data_utils import LABEL_TYPE
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.ltr_adhoc.util.lambda_utils import get_pairwise_comp_probs
@@ -24,12 +24,18 @@ class SimCLR(NeuralRanker):
         self.aug_percent = model_para_dict['aug_percent']
         self.dim = model_para_dict['dim']
         self.aug_type = model_para_dict['aug_type']
+        self.temperature = model_para_dict['temp']
+        self.mix = model_para_dict['mix']
         if self.aug_type == 'zeroes':
             self.augmentation = zeroes
         elif self.aug_type == 'qg':
             self.augmentation = qgswap
         elif self.aug_type == 'gaussian':
             self.augmentation = gaussian
+        elif self.aug_type == 'scarf':
+            self.augmentation = scarf
+        elif self.aug_type == 'dacl':
+            self.augmentation = dacl
 
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
@@ -132,7 +138,7 @@ class SimCLR(NeuralRanker):
         logits = torch.cat([positives, negatives], dim=1).to(self.device)
         labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.device)
 
-        logits = logits / 1.0
+        logits = logits / self.temperature
 
         return logits, labels
 
@@ -162,6 +168,39 @@ class SimCLR(NeuralRanker):
         logits_qg, labels_qg = self.info_nce_loss(s_concat, s1.shape[0])
         return logits_qg, labels_qg
     
+    def sub_forward(self, batch_q_doc_vectors):
+        '''
+        Forward pass through the scoring function, where each document is scored independently.
+        @param batch_q_doc_vectors: [batch_size, num_docs, num_features], the latter two dimensions {num_docs, num_features} denote feature vectors associated with the same query.
+        @return:
+        '''
+        batch_size, num_docs, num_features = batch_q_doc_vectors.size()
+        x1 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+        x2 = self.augmentation(batch_q_doc_vectors, self.aug_percent, self.device)
+
+        data_dim = batch_q_doc_vectors.shape[2]
+        # x1_flat = x1.reshape((-1, data_dim))
+        # x2_flat = x2.reshape((-1, data_dim))
+        embed1 = self.point_sf(x1)
+        embed2 = self.point_sf(x2)
+        z1 = self.projector(embed1)
+        z2 = self.projector(embed2)
+        
+        s1 = z1.view(-1, self.dim)  # [batch_size, embed_dim]
+        s2 = z2.view(-1, self.dim)  # [batch_size, embed_dim]
+
+        # shuffle all the elements randomly
+        randidx = torch.randperm(s1.shape[0])
+        b1 = s1[randidx, :]
+        b2 = s2[randidx, :]
+        # new "query groups"
+        b1 = b1.reshape(-1, num_docs, self.dim)
+        b2 = b2.reshape(-1, num_docs, self.dim)  
+
+        s_concat = torch.cat((b1, b2), dim=1).to(self.device)
+        logits_qg, labels_qg = self.qg_info_nce_loss(s_concat, z1.shape[1], z1.shape[0])
+        return logits_qg, labels_qg
+
     def qg_forward(self, batch_q_doc_vectors):
         '''
         Forward pass through the scoring function, where each document is scored independently.
@@ -220,7 +259,7 @@ class SimCLR(NeuralRanker):
         # [batchsize, 2 x qgsize]
         labels = torch.zeros(logits.shape[1], dtype=torch.long).to(self.device)[None, :].expand(batch_size, -1)
         # [batchsize, 2 x qgsize, 2 x qgsize - 1]
-        logits = logits / 1.0
+        logits = logits / self.temperature
 
         return logits, labels
 
@@ -295,25 +334,31 @@ class SimCLR(NeuralRanker):
         @param kwargs:
         @return:
         '''
+        
         logits_qg, labels_qg = batch_preds
-        # lambda_loss = self.loss(logits_qg, labels_qg)
-        # pred = torch.argmax(logits_qg, dim=1)
-        # correct = torch.sum(pred == labels_qg)
-        # total_num = pred.shape[0]
-
-
-        loss = self.loss_no_reduction(logits_qg.permute(0, 2, 1), labels_qg)
-        loss_reduced = loss.mean(dim = 1)
-        lambda_loss = loss_reduced.mean()
-
-        # [batchsize, 2 x qgsize]
-        pred = torch.argmax(logits_qg, dim=2)
-        # [batchsize, 2 x qgsize]
+        ### for SimCLR ###
+        lambda_loss = self.loss(logits_qg, labels_qg)
+        pred = torch.argmax(logits_qg, dim=1)
         correct = torch.sum(pred == labels_qg)
-        total_num = pred.shape[0] * pred.shape[1]
+        total_num = pred.shape[0]
+        ### for SimCLR ###
+
+        ### for simclr_rank ###
+        # loss = self.loss_no_reduction(logits_qg.permute(0, 2, 1), labels_qg)
+        # loss_reduced = loss.mean(dim = 1)
+        # lambda_loss = loss_reduced.mean()
+
+        # # [batchsize, 2 x qgsize]
+        # pred = torch.argmax(logits_qg, dim=2)
+        # # [batchsize, 2 x qgsize]
+        # correct = torch.sum(pred == labels_qg)
+        # total_num = pred.shape[0] * pred.shape[1]
+        ### for simclr_rank ###
+
         loss = lambda_loss
         self.optimizer.zero_grad()
         loss.backward()
+        # torch.nn.utils.clip_grad_norm_(self.point_sf.parameters(), 2.0)
         self.optimizer.step()
         return loss, correct, total_num
     
@@ -326,7 +371,7 @@ class SimCLR(NeuralRanker):
         @return:
         '''
         stop_training = False
-        batch_preds = self.qg_forward(batch_q_doc_vectors)
+        batch_preds = self.forward(batch_q_doc_vectors)
 
         return self.custom_loss_function(batch_preds, batch_std_labels, **kwargs), stop_training
     
@@ -374,7 +419,7 @@ class SimCLRParameter(ModelParameter):
         Default parameter setting for SimRank
         :return:
         """
-        self.para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100, aug_type='qg')
+        self.para_dict = dict(model_id=self.model_id, aug_percent=0.7, dim=100, aug_type='qg', temp=0.07, mix=0.5)
         return self.para_dict
 
     def to_para_string(self, log=False, given_para_dict=None):
@@ -388,7 +433,7 @@ class SimCLRParameter(ModelParameter):
         para_dict = given_para_dict if given_para_dict is not None else self.para_dict
 
         s1, s2 = (':', '\n') if log else ('_', '_')
-        para_str = s1.join(['aug_percent', '{:,g}'.format(para_dict['aug_percent']), 'embed_dim', '{:,g}'.format(para_dict['dim']), 'aug_type', para_dict['aug_type']])
+        para_str = s1.join(['aug_percent', '{:,g}'.format(para_dict['aug_percent']), 'embed_dim', '{:,g}'.format(para_dict['dim']), 'aug_type', para_dict['aug_type'], 'temp', para_dict['temp'], 'mix', para_dict['mix']])
         return para_str
 
     def grid_search(self):
@@ -399,12 +444,16 @@ class SimCLRParameter(ModelParameter):
             choice_aug = self.json_dict['aug_percent']
             choice_dim = self.json_dict['dim']
             choice_augtype = self.json_dict['aug_type']
+            choice_temp = self.json_dict['temp']
+            choice_mix = self.json_dict['mix']
         else:
             choice_aug = [0.3, 0.7] if self.debug else [0.7]  # 1.0, 10.0, 50.0, 100.0
             choice_dim = [50, 100] if self.debug else [100]  # 1.0, 10.0, 50.0, 100.0
             choice_augtype = ['zeroes', 'qg'] if self.debug else ['qg']  # 1.0, 10.0, 50.0, 100.0
+            choice_temp = [0.07, 0.1] if self.debug else [0.07] 
+            choice_mix = [1., 0.] if self.debug else [1.]
 
 
-        for aug_percent, dim, augtype in product(choice_aug, choice_dim, choice_augtype):
-            self.para_dict = dict(model_id=self.model_id, aug_percent=aug_percent, dim=dim, aug_type=augtype)
+        for aug_percent, dim, augtype, temp, mix in product(choice_aug, choice_dim, choice_augtype, choice_temp, choice_mix):
+            self.para_dict = dict(model_id=self.model_id, aug_percent=aug_percent, dim=dim, aug_type=augtype, temp=temp, mix=mix)
             yield self.para_dict

@@ -18,14 +18,22 @@ Step 3: Run the command to pretrain and finetune a method.
 
 An example input for pretraining with SimCLR-Rank (can also use SimSiam) and finetuning with LambdaRank when there are 0.001 of the training query groups remaining:
 
-
 >python e2e_eval.py -cuda 0 -dir_json ssl_rank/inputs -pretrain_lr 0.001 -finetune_lr 0.001 -trial_num 0 -aug_type zeroes -aug_percent 0.1 -dim 64 -layers 5 -pretrainer SimCLR -shrink 0.001 -freeze 0 -probe_layers 1 -finetune_only 0 -finetune_trials 0
+
+For pretrainers SimCLR/SimCLR-Rank/SimSiam/DACL+/SCARF, you can choose (1) zeroes and an aug_percent between 0 and 1.0, (2) gaussian with a aug_percent greater or equal to zero, (3) dacl where aug_percent means the mixup percentage, (4) scarf where aug_percent means the corruption percentage.
+
+For pretrainer VIME-self, use VIME for the pretrainer option and aug_percent represents the corruption probability.
+
+For pretrainer SubTab, uncomment lines blocked as "SubTab" in ssl_rank/ptranking/ltr_adhoc/pretrain/rankneg.py while commenting lines blocked as "VIME-self". Then run the command with SubTab as your pretrainer.
 
 
 An example input for running a GBDT baseline with 0.001 of the training query groups remaining:
 
 >python e2e_eval.py -cuda 0 -dir_json ssl_rank/testing/ltr_tree/json -pretrain_lr 0.001 -finetune_lr 0.001 -trial_num 0 -aug_type zeroes -aug_percent 0.1 -dim 64 -layers 5 -pretrainer LightGBMLambdaMART -shrink 0.001 -freeze 0 -probe_layers 1 -finetune_only 0 -finetune_trials 0
 
+To enable pseudo-labeling, uncomment the lines between 208-223 in ssl_rank/ptranking/ltr_tree/lambdamart/lightgbm_lambdaMART.py
+
+To enable the PCA transform, uncomment the lines between 153-161 in ssl_rank/ptranking/ltr_tree/lambdamart/lightgbm_lambdaMART.py
 
 An example input for running a deep learning baseline with 0.001 of the training query groups remaining:
 

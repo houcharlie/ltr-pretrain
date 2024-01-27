@@ -10,7 +10,8 @@ from ptranking.data.set2_dataset_filters import set2_filters
 from ptranking.data.istella_filters import istella_filters
 import lightgbm as lgbm
 from lightgbm import Dataset
-
+from scipy.sparse import hstack
+from sklearn.decomposition import KernelPCA, PCA, TruncatedSVD
 from ptranking.ltr_adhoc.eval.parameter import ModelParameter
 from ptranking.data.data_utils import load_letor_data_as_libsvm_data, YAHOO_LTR, SPLIT_TYPE
 
@@ -105,6 +106,14 @@ class LightGBMLambdaMART():
         # x_train = x_train_full[:int(x_train_full.shape[0] * argobj.shrink),:]
         # y_train = y_train_full[:int(len(y_train_full) * argobj.shrink)]
         group_train_full = np.loadtxt(file_train_group)
+
+        rbf_pca = KernelPCA(
+            n_components=5, kernel="rbf", gamma=1.0
+        )
+        poly_pca = KernelPCA(
+            n_components=5, kernel="poly", degree=2, gamma=1.0
+        )
+        pca = TruncatedSVD(n_components=5)
         if argobj.shrink == 1.0:
             group_train = group_train_full
             x_train = x_train_full
@@ -115,17 +124,17 @@ class LightGBMLambdaMART():
             x_train = x_train_full[:int(train_top_idx),:]
             y_train = y_train_full[:int(train_top_idx)]
         # import ipdb; ipdb.set_trace()
-        
-        # x_train = x_train_full
-        # y_train = y_train_full
-        # group_train = group_train_full
-        train_set = Dataset(data=x_train, label=y_train, group=group_train)
+        print('Fitting the PCAs')
+        print(x_train_full.shape)
+
+        train_set = Dataset(data=x_train, label=y_train, group=group_train, free_raw_data=False)
         print(len(group_train))
         print(np.sum(group_train))
         print(y_train.shape)
         file_test_data, file_test_group = load_letor_data_as_libsvm_data(file_test, split_type=SPLIT_TYPE.Test,
                                                      data_dict=data_dict, eval_dict=eval_dict, presort=test_presort)
         x_test, y_test = load_svmlight_file(file_test_data)
+        
         group_test = np.loadtxt(file_test_group)
         print('test size', y_test.shape)
         print(len(group_test))
@@ -140,8 +149,18 @@ class LightGBMLambdaMART():
             x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(set2_filters, x_test, group_test, y_test)
         elif data_dict['data_id'] == 'Istella_S':
             x_test_robust, group_test_robust, y_test_robust = self.generate_robust_data(istella_filters, x_test, group_test, y_test)
-        print('Number of robust samples', y_test_robust.shape)
-        print('Number of samples', y_test.shape)
+
+        # ====================== PCA transform ================================
+        # fitted_transform = pca.fit(x_train_full)
+        # x_train_append = fitted_transform.transform(x_train)
+        # x_train = hstack([x_train, x_train_append])
+        # x_test_append = fitted_transform.transform(x_test)
+        # x_test = hstack([x_test, x_test_append])
+        # x_test_robust_append = fitted_transform.transform(x_test_robust)
+        # x_test_robust = hstack([x_test_robust, x_test_robust_append])
+        # ====================== PCA transform ================================
+
+
         if do_validation: # prepare validation dataset if needed
             file_vali_data, file_vali_group=load_letor_data_as_libsvm_data(file_vali, split_type=SPLIT_TYPE.Validation,
                                                 data_dict=data_dict, eval_dict=eval_dict, presort=validation_presort)
@@ -151,7 +170,7 @@ class LightGBMLambdaMART():
 
             group_valid = np.loadtxt(file_vali_group)
             print(len(group_valid))
-            valid_set = Dataset(data=x_valid, label=y_valid, group=group_valid)
+            valid_set = Dataset(data=x_valid, label=y_valid, group=group_valid, free_raw_data=False)
 
             if self.custom_dict['custom'] and self.custom_dict['use_LGBMRanker']:
                 lgbm_ranker = lgbm.LGBMRanker()
@@ -181,9 +200,31 @@ class LightGBMLambdaMART():
                                          fobj=self.get_custom_obj(custom_obj_id=self.custom_dict['custom_obj_id'],
                                                                   fobj=True))
             else: # trained booster as ranker
+                # train on small set
                 lgbm_ranker = lgbm.train(params=self.lightgbm_para_dict, verbose_eval=10,
                                          train_set=train_set, valid_sets=[valid_set],
                                          early_stopping_rounds=eval_dict['early_stop_or_boost_round'])
+                
+                # # ==================pseudolabel===========================
+                # y_pseudo_full = lgbm_ranker.predict(x_train_full)
+                # y_pseudo_min = np.min(y_pseudo_full)
+                # y_pseudo_pos = (y_pseudo_full - y_pseudo_min)
+                # y_max = np.max(y_pseudo_pos)
+                # rescaling = 4.4 / y_max
+                # y_pseudo_pos = y_pseudo_pos * rescaling
+                # y_pseudo_int = y_pseudo_pos.astype(int)
+                # print('Num unique relevances', len(np.unique(y_pseudo_int)))
+                # y_pseudo_int[:int(train_top_idx)] = y_train_full[:int(train_top_idx)]
+                # y_pseudo = Dataset(data=x_train_full, label=y_pseudo_int, group=group_train_full)
+                # print('\n\n==============Pseudolabeled===============\n\n')
+                # lgbm_ranker = lgbm.train(params=self.lightgbm_para_dict, verbose_eval=10,
+                #                          train_set=y_pseudo, valid_sets=[valid_set],
+                #                          early_stopping_rounds=eval_dict['early_stop_or_boost_round'])
+                # # ==================pseudolabel===========================
+
+
+
+
         else: # without validation
             if self.custom_dict['custom'] and self.custom_dict['use_LGBMRanker']:
                 lgbm_ranker = lgbm.LGBMRanker()
@@ -219,6 +260,7 @@ class LightGBMLambdaMART():
         y_pred_robust = lgbm_ranker.predict(x_test_robust)
 
         return y_test, group_test, y_pred, y_test_robust, group_test_robust, y_pred_robust
+        # return y_test, group_test, y_pred
 
 
 ###### Parameter of LambdaMART ######

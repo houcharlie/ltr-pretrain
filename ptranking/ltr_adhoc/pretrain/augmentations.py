@@ -10,6 +10,41 @@ def zeroes(x, aug_percent, device, mix=0., scale=0.):
     noise_aug_x = aug_x + torch.randn_like(aug_x, device=device) * scale
     return noise_aug_x    
 
+def dacl(x, aug_percent, device, mix=0., scale=0.):
+    num_features = x.shape[2]
+    orig_shape = x.shape
+    
+    feature_bank = x.detach().clone().to(device).reshape(-1, num_features)
+    num_samples_batch = feature_bank.shape[0]
+    x_full = x.reshape(-1, num_features)
+    randidx = torch.multinomial(torch.ones(num_samples_batch), num_samples=num_samples_batch, replacement=True)
+    sampled = feature_bank[randidx,:]
+
+    random_mixup = torch.rand(1)
+
+    random_mixup_weight = (torch.rand(1) * aug_percent).to(device)
+    mask_percent = aug_percent/2.0
+    if random_mixup < 1./2.:
+        res = (1.0 - random_mixup_weight) * x_full + (random_mixup_weight) * (sampled)
+    else:
+        mask = torch.bernoulli(torch.ones_like(x_full).to(device) * mask_percent).to(device)
+        res = (1 - mask) * x_full + (mask) * sampled
+    returned_result = res.reshape(orig_shape)
+    return returned_result
+
+def scarf(x, aug_percent, device, mix=0., scale=0.):
+    num_features = x.shape[2]
+    orig_shape = x.shape
+    x_full = x.reshape(-1, num_features)
+
+    corrupted_indices_cont = torch.rand(x_full.shape).to(device)
+    corrupted_indices_indicator = (corrupted_indices_cont < aug_percent).to(device)
+    dim0_target, dim1_target = torch.where(corrupted_indices_indicator)
+    dim0_source = torch.randint(0, x_full.shape[0], size=dim0_target.shape).to(device)
+    aug_x = x_full.detach().clone().to(device)
+    aug_x[dim0_target, dim1_target] = x_full[dim0_source, dim1_target].detach().clone().to(device)
+    
+    return aug_x.reshape(orig_shape)
 
 def qgswap(x, aug_percent, device, mix=0., scale=0.):
     """
