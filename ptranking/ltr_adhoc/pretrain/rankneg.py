@@ -61,7 +61,7 @@ class RankNeg(NeuralRanker):
         # VIME-self=============================================================
         
         # SubTab =============================================================
-        self.decoder = self.config_head()
+        # self.decoder = self.config_head()
         # SubTab =============================================================
 
         self.xent_loss = torch.nn.CrossEntropyLoss().to(self.device)
@@ -222,11 +222,17 @@ class RankNeg(NeuralRanker):
 
     def eval_mode(self):
         self.point_sf.eval()
+    # # subtab==========================================================
+        # self.decoder.eval()
+    # # subtab==========================================================
         self.decoder1.eval()
         self.decoder2.eval()
 
     def train_mode(self):
         self.point_sf.train(mode=True)
+    # # subtab==========================================================
+        # self.decoder.train(mode=True)
+    # # subtab==========================================================
         self.decoder1.train(mode=True)
         self.decoder2.train(mode=True)
 

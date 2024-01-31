@@ -159,7 +159,7 @@ if __name__ == '__main__':
         if argobj.aug_type != 'none' and not argobj.finetune_only:
             print('Starting pretraining!', sys.stderr)
             argobj.is_pretraining = True
-            evaluator.run(model_id=file_pretrain, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(argobj.pretrainer)), config_with_json=True, argobj=argobj)
+            evaluator.run(model_id=file_pretrain, dir_json=os.path.join(argobj.dir_json, '{0}/'.format(file_pretrain)), config_with_json=True, argobj=argobj)
 
         print('Starting finetuning!', sys.stderr)
         argobj.is_pretraining = False
