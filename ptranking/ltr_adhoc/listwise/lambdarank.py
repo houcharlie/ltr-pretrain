@@ -28,6 +28,9 @@ class LambdaRank(AdhocNeuralRanker):
         self.sigma = model_para_dict['sigma']
     def init(self):
         self.point_sf = self.config_point_neural_scoring_function()
+        for i in range(2):
+            nr_hn = nn.Linear(136, 136)
+            self.point_sf.add_module('_'.join(['ff', 'scoring', str(i)]), nr_hn)
         nr_hn = nn.Linear(136, 1)
         self.point_sf.add_module('_'.join(['ff', 'scoring']), nr_hn)
         self.point_sf.to(self.device)
